@@ -12,6 +12,7 @@ public class Movement : MonoBehaviour
     [SerializeField] float stepSmooth = 2f;
     [SerializeField] GameObject stepRayUpper;
     [SerializeField] GameObject stepRayLower;
+    [SerializeField] public Menu menu;   
 
     private float jumpSpeed = 5300f;
     private bool canJump;
@@ -21,7 +22,9 @@ public class Movement : MonoBehaviour
     private Controls _controls;
     private Animator _animator;
     private static readonly int IsWalking = Animator.StringToHash("isWalking");
-    public static bool GameIsPaused = false;   
+    private static readonly int IsRunning = Animator.StringToHash("isRunning");
+    public static bool GameIsPaused = false;
+    
     
     private void Awake()
     {
@@ -44,21 +47,6 @@ public class Movement : MonoBehaviour
         _controls.Disable();
     }
 
-    void Resume()
-    {
-        Time.timeScale = 1f;
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
-    }
-
-    void Pause()
-    {
-        Time.timeScale = 0f;
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
-        SceneManager.LoadScene("PauseMenu");
-    }
-
     private void Start()
     {
         _mainCamera = Camera.main;
@@ -68,49 +56,10 @@ public class Movement : MonoBehaviour
 
     private void Update()
     {
-        if (usePhysics)
-        {
-            return;
-        }
-
-        if (_controls.Player.Run.IsPressed())
-        {
-            speed = 25;
-        }
-        else
-        {
-            speed = 10;
-        }
-
-        if (_controls.Player.Pause.IsPressed())
-        {
-            if (GameIsPaused)
-            {
-                Resume();
-            }
-            else
-            {
-                Pause();
-            }
-        }
-
-        if (_controls.Player.Jump.IsPressed() & canJump)
-        {
-            _rb.AddForce(1f, jumpSpeed * Time.deltaTime, 2f);
-        }
-
-
-        if (_controls.Player.Move.IsPressed())
-        {
-            _animator.SetBool(IsWalking, true);
-            Vector2 input = _controls.Player.Move.ReadValue<Vector2>();
-            Vector3 target = HandleInput(input);
-            Move(target);
-        }
-        else
-        {
-            _animator.SetBool(IsWalking, false);
-        }
+        if (!_controls.Player.Move.IsPressed()) return;
+        Vector2 input = _controls.Player.Move.ReadValue<Vector2>();
+        Vector3 target = HandleInput(input);
+        RotateCharacter(target);
     }
     
     private void FixedUpdate()
@@ -124,25 +73,29 @@ public class Movement : MonoBehaviour
         {
             if (GameIsPaused)
             {
-                Resume();
+                menu.ResumeGame();
             }
             else
             {
-                Pause();
+                menu.PauseGame();
             }
         }
 
         if (_controls.Player.Jump.IsPressed() & canJump)
         {
+            _animator.SetTrigger("Jump");
             _rb.AddForce(1f, jumpSpeed * Time.deltaTime, 2f);
         }
 
         if (_controls.Player.Run.IsPressed())
         {
+            CamShake.Instance.ShakeCam(0.1f, 0.1f);
+            _animator.SetBool(IsRunning, true);
             speed = 30;
         }
         else
         {
+            _animator.SetBool(IsRunning, false);
             speed = 10;
         }
 
@@ -156,6 +109,11 @@ public class Movement : MonoBehaviour
         else
         {
             _animator.SetBool(IsWalking, false);
+        }
+
+        if (_controls.Player.Kick.IsPressed())
+        {
+            _animator.SetTrigger("Kick");
         }
 
         stepClimb();
@@ -236,5 +194,15 @@ public class Movement : MonoBehaviour
                 _rb.position -= new Vector3(0f, -stepSmooth * Time.deltaTime, 0f);
             }
         }
+    }
+
+    private void RotateCharacter(Vector3 target)
+    {
+        transform.rotation = Quaternion.LookRotation(target-transform.position);
+    }
+
+    public void Kick()
+    {
+        _animator.SetTrigger("Kick");
     }
 }
